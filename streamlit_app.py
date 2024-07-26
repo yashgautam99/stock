@@ -179,7 +179,7 @@ def main():
             # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
                 "Choose indicators",
-                ["None", "Moving Averages", "Bollinger Bands", "RSI"]
+                ["Select", "Moving Averages", "Bollinger Bands", "RSI"]
             )
 
             # Plot selected indicator
