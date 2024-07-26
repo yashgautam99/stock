@@ -116,23 +116,27 @@ def main():
             # Calculate moving averages
             stock_data['SMA_20'] = stock_data['Close'].rolling(20).mean()
             stock_data['SMA_50'] = stock_data['Close'].rolling(50).mean()
-            
-            # Plot moving averages
-            plot_moving_averages(stock_data)
 
             # Calculate Bollinger Bands
             bb = ta.volatility.BollingerBands(stock_data['Close'], window=20, window_dev=2)
             stock_data['BB_High'] = bb.bollinger_hband()
             stock_data['BB_Low'] = bb.bollinger_lband()
 
-            # Plot Bollinger Bands
-            plot_bollinger_bands(stock_data)
-            
             # Calculate RSI
             stock_data['RSI'] = ta.momentum.RSIIndicator(stock_data['Close'], window=14).rsi()
 
-            # Plot RSI
-            plot_rsi(stock_data)
+            # Dropdown menu for indicators
+            indicator = st.sidebar.selectbox(
+                "Choose indicators",
+                ["None", "Moving Averages", "Bollinger Bands", "RSI"]
+            )
+
+            if indicator == "Moving Averages":
+                plot_moving_averages(stock_data)
+            elif indicator == "Bollinger Bands":
+                plot_bollinger_bands(stock_data)
+            elif indicator == "RSI":
+                plot_rsi(stock_data)
             
         else:
             st.write("No data available for the selected stock and date range.")
