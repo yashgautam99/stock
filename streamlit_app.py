@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import ta
 
 # List of 50 stock tickers for user selection
-STOCKS = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
+STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
           'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
           'INTC', 'PFE', 'KO', 'PEP', 'NKE', 'MRK', 'T', 'BA', 'CSCO', 'ABT', 'XOM',
           'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
@@ -138,7 +138,7 @@ def main():
     """
     Main function to run the Streamlit app.
     """
-    st.title("🎈 Stock Prediction Dashboard")
+    st.title("📊 Stock Prediction Dashboard")
 
     # Sidebar for user inputs
     st.sidebar.header("Select Stock and Date Range")
@@ -191,7 +191,7 @@ def main():
                 plot_rsi(stock_data)
             
         else:
-            st.write("No data available for the selected stock and date range.")
+            st.write("No stock data available. Please select a stock from the list.")
 
 if __name__ == "__main__":
     main()
