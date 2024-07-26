@@ -5,7 +5,7 @@ import datetime
 import matplotlib.pyplot as plt
 import ta
 
-# List of 50 stock tickers
+# List of 50 stock tickers for user selection
 STOCKS = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
           'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
           'INTC', 'PFE', 'KO', 'PEP', 'NKE', 'MRK', 'T', 'BA', 'CSCO', 'ABT', 'XOM',
@@ -13,6 +13,17 @@ STOCKS = ['AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 
           'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
 
 def load_stock_data(ticker, start, end):
+    """
+    Fetches historical stock data from Yahoo Finance.
+
+    Parameters:
+    ticker (str): Stock ticker symbol.
+    start (datetime): Start date for data retrieval.
+    end (datetime): End date for data retrieval.
+
+    Returns:
+    pd.DataFrame: DataFrame containing stock data or empty DataFrame on error.
+    """
     try:
         stock_data = yf.download(ticker, start=start, end=end)
         return stock_data
@@ -21,6 +32,13 @@ def load_stock_data(ticker, start, end):
         return pd.DataFrame()  # Return an empty DataFrame on error
 
 def plot_stock_data(data, title):
+    """
+    Plots the closing price of the stock.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data.
+    title (str): Title for the plot.
+    """
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.plot(data.index, data['Close'], label='Close Price', color='blue')
     ax.set_xlabel('Date')
@@ -31,19 +49,28 @@ def plot_stock_data(data, title):
     st.pyplot(fig)
 
 def plot_additional_data(data):
+    """
+    Plots additional stock data including Open, High, Low prices, and Volume.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data.
+    """
     fig, axs = plt.subplots(3, 1, figsize=(10, 15), sharex=True)
 
+    # Plot Close and Open prices
     axs[0].plot(data.index, data['Close'], label='Close Price', color='blue')
     axs[0].plot(data.index, data['Open'], label='Open Price', color='green')
     axs[0].set_ylabel('Price')
     axs[0].legend()
     axs[0].set_title('Stock Prices')
 
+    # Plot High and Low prices
     axs[1].plot(data.index, data['High'], label='High Price', color='red')
     axs[1].plot(data.index, data['Low'], label='Low Price', color='orange')
     axs[1].set_ylabel('Price')
     axs[1].legend()
 
+    # Plot Volume
     axs[2].plot(data.index, data['Volume'], label='Volume', color='purple')
     axs[2].set_ylabel('Volume')
     axs[2].set_xlabel('Date')
@@ -53,6 +80,12 @@ def plot_additional_data(data):
     st.pyplot(fig)
 
 def plot_moving_averages(data):
+    """
+    Plots moving averages (20-day and 50-day) along with the closing price.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data with calculated moving averages.
+    """
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
@@ -65,6 +98,12 @@ def plot_moving_averages(data):
     st.pyplot(fig)
 
 def plot_bollinger_bands(data):
+    """
+    Plots Bollinger Bands along with the closing price.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data with calculated Bollinger Bands.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
@@ -78,6 +117,12 @@ def plot_bollinger_bands(data):
     st.pyplot(fig)
 
 def plot_rsi(data):
+    """
+    Plots the Relative Strength Index (RSI) along with overbought and oversold lines.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data with calculated RSI.
+    """
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data.index, data['RSI'], label='RSI', linewidth=0.5)
@@ -90,20 +135,26 @@ def plot_rsi(data):
     st.pyplot(fig)
 
 def main():
+    """
+    Main function to run the Streamlit app.
+    """
     st.title("🎈 Stock Prediction Dashboard")
 
-    # Dropdown menu for stock selection
+    # Sidebar for user inputs
     st.sidebar.header("Select Stock and Date Range")
     stock = st.sidebar.selectbox("Choose a stock", STOCKS)
     start_date = st.sidebar.date_input("Start Date", datetime.date(2020, 1, 1))
     end_date = st.sidebar.date_input("End Date", datetime.date.today())
 
+    # Validate date range
     if start_date > end_date:
         st.sidebar.error("Error: End date must be after start date.")
     else:
+        # Load stock data
         stock_data = load_stock_data(stock, start_date, end_date)
         
         if not stock_data.empty:
+            # Display stock data
             st.subheader(f"{stock} Stock Data")
             st.write(stock_data.tail())
 
@@ -125,12 +176,13 @@ def main():
             # Calculate RSI
             stock_data['RSI'] = ta.momentum.RSIIndicator(stock_data['Close'], window=14).rsi()
 
-            # Dropdown menu for indicators
+            # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
                 "Choose indicators",
                 ["None", "Moving Averages", "Bollinger Bands", "RSI"]
             )
 
+            # Plot selected indicator
             if indicator == "Moving Averages":
                 plot_moving_averages(stock_data)
             elif indicator == "Bollinger Bands":
