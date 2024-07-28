@@ -4,4 +4,5 @@ matplotlib
 datetime
 pandas
 ta
-pandas_datareader
+requests
+time
