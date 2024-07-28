@@ -6,12 +6,13 @@ import ta
 import datetime
 
 # List of 50 stock tickers for user selection
-STOCKS = ['Select', 'TCS', 'RELIANCE', 'INFY', 'HDFCBANK', 'ICICIBANK', 'HINDUNILVR', 'ITC', 'KOTAKBANK', 'SBIN',
-          'BHARTIARTL', 'HCLTECH', 'BAJFINANCE', 'ASIANPAINT', 'AXISBANK', 'LT', 'NESTLEIND', 'MARUTI', 'HDFCLIFE',
-          'BAJAJFINSV', 'WIPRO', 'SUNPHARMA', 'DRREDDY', 'POWERGRID', 'M&M', 'ULTRACEMCO', 'TATASTEEL', 'ONGC',
-          'TITAN', 'INDUSINDBK', 'DIVISLAB', 'HDFCAMC', 'NTPC', 'ADANIGREEN', 'ADANIPORTS', 'HEROMOTOCO', 'BPCL',
-          'COALINDIA', 'TATAMOTORS', 'ADANIENT', 'JSWSTEEL', 'EICHERMOT', 'GRASIM', 'BAJAJ-AUTO', 'TECHM', 'UPL',
-          'CIPLA', 'HINDALCO', 'BRITANNIA', 'IOC', 'SHREECEM']
+STOCKS = [
+    'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'FB', 'TSLA', 'BRK.B', 'V', 'JNJ', 'WMT',
+    'JPM', 'UNH', 'NVDA', 'HD', 'PG', 'DIS', 'PYPL', 'MA', 'NFLX', 'INTC',
+    'PEP', 'KO', 'CSCO', 'MRK', 'NKE', 'XOM', 'T', 'CVX', 'ABT', 'ADBE',
+    'CMCSA', 'CRM', 'PFE', 'MCD', 'MDT', 'WFC', 'ORCL', 'VZ', 'IBM', 'HON',
+    'COST', 'SBUX', 'MMM', 'AMGN', 'GE', 'TMO', 'CAT', 'TXN', 'QCOM', 'BA'
+]
 
 def load_stock_data(ticker, start, end):
     """
