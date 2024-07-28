@@ -51,7 +51,11 @@ def plot_stock_data(data, title):
     ax.set_title(title)
     ax.legend()
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_additional_data(data):
     """
@@ -82,7 +86,11 @@ def plot_additional_data(data):
     axs[2].legend()
 
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_moving_averages(data):
     """
@@ -103,7 +111,11 @@ def plot_moving_averages(data):
     ax.set_title('Moving Average Analysis')
     ax.legend()
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_bollinger_bands(data):
     """
@@ -126,7 +138,11 @@ def plot_bollinger_bands(data):
     ax.set_title('Bollinger Bands Analysis')
     ax.legend()
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_rsi(data):
     """
@@ -146,7 +162,11 @@ def plot_rsi(data):
     ax.legend()
 
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_macd(data):
     """
@@ -167,7 +187,11 @@ def plot_macd(data):
     ax.legend()
 
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def plot_price_changes(data):
     """
@@ -195,7 +219,11 @@ def plot_price_changes(data):
     axs[1].grid(True)
 
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+
+    try:
+        st.pyplot(fig)
+    except BrokenPipeError:
+        st.warning("Client disconnected prematurely.")
 
 def main():
     """
