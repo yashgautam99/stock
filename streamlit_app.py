@@ -4,7 +4,6 @@ import yfinance as yf
 import datetime
 import matplotlib.pyplot as plt
 import ta
-import time
 
 # List of 50 stock tickers for user selection
 STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
@@ -13,35 +12,24 @@ STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA'
           'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
           'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
 
-def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
+def load_stock_data(ticker, start, end):
     """
-    Fetches historical stock data from Yahoo Finance with retry mechanism.
+    Fetches historical stock data from Yahoo Finance.
 
     Parameters:
     ticker (str): Stock ticker symbol.
     start (datetime): Start date for data retrieval.
     end (datetime): End date for data retrieval.
-    max_retries (int): Maximum number of retry attempts.
-    retry_delay (int): Delay in seconds between retries.
 
     Returns:
     pd.DataFrame: DataFrame containing stock data or empty DataFrame on error.
     """
-    for attempt in range(max_retries):
-        try:
-            stock_data = yf.download(ticker, start=start, end=end)
-            if not stock_data.empty:
-                return stock_data
-            else:
-                st.warning(f"No data available for {ticker}. Retrying...")
-        except Exception as e:
-            st.warning(f"Error loading data for {ticker} (Attempt {attempt + 1}/{max_retries}): {e}")
-        
-        if attempt < max_retries - 1:
-            time.sleep(retry_delay)
-    
-    st.error(f"Failed to load data for {ticker} after {max_retries} attempts.")
-    return pd.DataFrame()  # Return an empty DataFrame on error
+    try:
+        stock_data = yf.download(ticker, start=start, end=end)
+        return stock_data
+    except Exception as e:
+        st.error(f"Error loading data for {ticker}: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
 
 def plot_stock_data(data, title):
     """
@@ -212,8 +200,6 @@ def main():
     # Validate date range
     if start_date > end_date:
         st.sidebar.error("Error: End date must be after start date.")
-    elif stock == 'Select':
-        st.sidebar.error("Error: Please select a valid stock.")
     else:
         # Load stock data
         stock_data = load_stock_data(stock, start_date, end_date)
