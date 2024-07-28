@@ -5,7 +5,13 @@ import datetime
 import matplotlib.pyplot as plt
 import ta
 import time
+import random
+import requests
+import sys
+import socket
 
+
+ALPHA_VANTAGE_API_KEY = "CH0Q0JNSP3QYB53L" 
 # List of 50 stock tickers for user selection
 STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
           'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
@@ -13,19 +19,10 @@ STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA'
           'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
           'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
 
-def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_stock_data_yf(ticker, start, end, max_retries=5, base_delay=1):
     """
-    Fetches historical stock data from Yahoo Finance with retry mechanism.
-
-    Parameters:
-    ticker (str): Stock ticker symbol.
-    start (datetime): Start date for data retrieval.
-    end (datetime): End date for data retrieval.
-    max_retries (int): Maximum number of retry attempts.
-    retry_delay (int): Delay in seconds between retries.
-
-    Returns:
-    pd.DataFrame: DataFrame containing stock data or empty DataFrame on error.
+    Fetches historical stock data from Yahoo Finance with retry mechanism and caching.
     """
     for attempt in range(max_retries):
         try:
@@ -33,16 +30,72 @@ def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
             if not stock_data.empty:
                 return stock_data
             else:
-                st.warning(f"No data available for {ticker}. Retrying...")
+                st.warning(f"No data available for {ticker} from Yahoo Finance. Retrying...")
         except Exception as e:
-            st.warning(f"Error loading data for {ticker} (Attempt {attempt + 1}/{max_retries}): {e}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            st.warning(f"Error loading data for {ticker} from Yahoo Finance (Attempt {attempt + 1}/{max_retries}):")
+            st.warning(f"Exception type: {exc_type.__name__}")
+            st.warning(f"Exception message: {exc_value}")
         
         if attempt < max_retries - 1:
-            time.sleep(retry_delay)
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+            time.sleep(delay)
     
-    st.error(f"Failed to load data for {ticker} after {max_retries} attempts.")
-    return pd.DataFrame()  # Return an empty DataFrame on error
+    st.error(f"Failed to load data for {ticker} from Yahoo Finance after {max_retries} attempts.")
+    return pd.DataFrame()
 
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def load_stock_data_alpha_vantage(ticker, start, end):
+    """
+    Fetches historical stock data from Alpha Vantage API with caching.
+    """
+    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&apikey={ALPHA_VANTAGE_API_KEY}&outputsize=full'
+    try:
+        r = requests.get(url)
+        data = r.json()
+
+        if 'Time Series (Daily)' in data:
+            df = pd.DataFrame(data['Time Series (Daily)']).T
+            df.index = pd.to_datetime(df.index)
+            df = df[(df.index >= start) & (df.index <= end)]
+            df = df.rename(columns={'1. open': 'Open', '2. high': 'High', '3. low': 'Low', '4. close': 'Close', '5. volume': 'Volume'})
+            df = df.astype({'Open': float, 'High': float, 'Low': float, 'Close': float, 'Volume': int})
+            return df
+        else:
+            st.error(f"Failed to load data for {ticker} from Alpha Vantage")
+            return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error fetching data from Alpha Vantage: {str(e)}")
+        return pd.DataFrame()
+    
+def load_stock_data(ticker, start, end):
+    """
+    Attempts to load stock data from multiple sources.
+    """
+    # Try Yahoo Finance first
+    data = load_stock_data_yf(ticker, start, end)
+    if not data.empty:
+        return data
+    
+    # If Yahoo Finance fails, try Alpha Vantage
+    st.warning("Failed to fetch data from Yahoo Finance. Trying Alpha Vantage...")
+    data = load_stock_data_alpha_vantage(ticker, start, end)
+    if not data.empty:
+        return data
+    
+    # If both fail, return empty DataFrame
+    st.error("Failed to fetch data from all sources.")
+    return pd.DataFrame()
+
+def check_network():
+    """
+    Checks if the network is reachable.
+    """
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=5)
+        st.success("Network is reachable")
+    except OSError:
+        st.error("Network is unreachable")
 def plot_stock_data(data, title):
     """
     Plots the closing price of the stock.
