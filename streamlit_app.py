@@ -134,6 +134,57 @@ def plot_rsi(data):
     plt.xticks(rotation=45)
     st.pyplot(fig)
 
+def plot_macd(data):
+    """
+    Plots the MACD and Signal line.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data.
+    """
+    # Calculate the MACD and Signal line
+    shortEMA = data['Close'].ewm(span=12, adjust=False).mean()
+    longEMA = data['Close'].ewm(span=26, adjust=False).mean()
+    MACD = shortEMA - longEMA
+    signal = MACD.ewm(span=9, adjust=False).mean()
+
+    # Plot MACD and Signal line
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(data.index, MACD, label='MACD', color='r', linewidth=1)
+    ax.plot(data.index, signal, label='Signal line', color='b', linewidth=1)
+    ax.set_title('MACD Analysis')
+    ax.legend()
+
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+def plot_price_changes(data):
+    """
+    Plots Absolute and Percentage Price Changes.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data.
+    """
+    data['Absolute_Change'] = data['Close'].diff()
+    data['Percentage_Change'] = data['Close'].pct_change() * 100
+
+    fig, axs = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
+
+    axs[0].plot(data.index, data['Absolute_Change'], label='Absolute Price Change', color='blue', linewidth=0.5)
+    axs[0].set_title('Absolute Price Change')
+    axs[0].set_ylabel('Price Change')
+    axs[0].legend()
+    axs[0].grid(True)
+
+    axs[1].plot(data.index, data['Percentage_Change'], label='Percentage Price Change', color='red', linewidth=0.5)
+    axs[1].set_title('Percentage Price Change')
+    axs[1].set_ylabel('Percentage Change')
+    axs[1].set_xlabel('Date')
+    axs[1].legend()
+    axs[1].grid(True)
+
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
 def main():
     """
     Main function to run the Streamlit app.
@@ -159,11 +210,22 @@ def main():
             st.write(stock_data.tail())
 
             # Plot the close price
+            st.subheader(f'{stock} Stock Price')
+            st.write("""
+                This graph shows the closing price of the selected stock over time. The closing price is the final price at which the stock traded on a given day, providing a snapshot of its value.
+            """)
             plot_stock_data(stock_data, f'{stock} Stock Price')
-            
+
             # Plot additional data
+            st.subheader('Additional Price and Volume Data')
+            st.write("""
+                This section includes:
+                - **Open Price**: The price at which the stock started trading on a given day.
+                - **High and Low Prices**: The highest and lowest prices the stock reached during the trading day.
+                - **Volume**: The number of shares traded during the day, indicating market activity and interest.
+            """)
             plot_additional_data(stock_data)
-            
+
             # Calculate moving averages
             stock_data['SMA_20'] = stock_data['Close'].rolling(20).mean()
             stock_data['SMA_50'] = stock_data['Close'].rolling(50).mean()
@@ -179,16 +241,40 @@ def main():
             # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
                 "Choose indicators",
-                ["Select", "Moving Averages", "Bollinger Bands", "RSI"]
+                ["Select", "Moving Averages", "Bollinger Bands", "RSI", "MACD", "Price Changes"]
             )
 
             # Plot selected indicator
             if indicator == "Moving Averages":
+                st.subheader('Moving Averages')
+                st.write("""
+                    The 20-day and 50-day Simple Moving Averages (SMA) are plotted alongside the closing price. These lines smooth out price fluctuations, making it easier to identify trends. A rising SMA indicates an upward trend, while a falling SMA suggests a downward trend.
+                """)
                 plot_moving_averages(stock_data)
             elif indicator == "Bollinger Bands":
+                st.subheader('Bollinger Bands')
+                st.write("""
+                    Bollinger Bands consist of a middle band (20-day SMA) and two outer bands (upper and lower bands). The bands expand during high volatility and contract during low volatility. They help identify overbought and oversold conditions and potential price reversals.
+                """)
                 plot_bollinger_bands(stock_data)
             elif indicator == "RSI":
+                st.subheader('Relative Strength Index (RSI)')
+                st.write("""
+                    The RSI is a momentum oscillator that measures the speed and change of price movements. It ranges from 0 to 100, with values above 70 indicating overbought conditions and below 30 indicating oversold conditions. It's useful for identifying potential reversals.
+                """)
                 plot_rsi(stock_data)
+            elif indicator == "MACD":
+                st.subheader('MACD (Moving Average Convergence Divergence)')
+                st.write("""
+                    The MACD is a trend-following momentum indicator that shows the relationship between two moving averages of a stock's price. The MACD line is the difference between the 12-day and 26-day EMAs, while the signal line is a 9-day EMA of the MACD. Crosses of the MACD and signal line can indicate buy or sell signals.
+                """)
+                plot_macd(stock_data)
+            elif indicator == "Price Changes":
+                st.subheader('Price Changes')
+                st.write("""
+                    This plot shows the absolute and percentage changes in the stock's closing price. Large changes may indicate significant market events or trends. The absolute change shows the raw price difference, while the percentage change provides a relative measure.
+                """)
+                plot_price_changes(stock_data)
             
         else:
             st.write("No stock data available. Please select a stock from the list.")
