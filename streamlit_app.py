@@ -57,6 +57,11 @@ def load_stock_data_alpha_vantage(ticker, start, end):
         if 'Time Series (Daily)' in data:
             df = pd.DataFrame(data['Time Series (Daily)']).T
             df.index = pd.to_datetime(df.index)
+            
+            # Convert start and end to datetime
+            start = pd.to_datetime(start)
+            end = pd.to_datetime(end)
+            
             df = df[(df.index >= start) & (df.index <= end)]
             df = df.rename(columns={'1. open': 'Open', '2. high': 'High', '3. low': 'Low', '4. close': 'Close', '5. volume': 'Volume'})
             df = df.astype({'Open': float, 'High': float, 'Low': float, 'Close': float, 'Volume': int})
@@ -67,11 +72,14 @@ def load_stock_data_alpha_vantage(ticker, start, end):
     except Exception as e:
         st.error(f"Error fetching data from Alpha Vantage: {str(e)}")
         return pd.DataFrame()
-    
 def load_stock_data(ticker, start, end):
     """
     Attempts to load stock data from multiple sources.
     """
+    # Convert start and end to datetime
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
+    
     # Try Yahoo Finance first
     data = load_stock_data_yf(ticker, start, end)
     if not data.empty:
@@ -269,7 +277,7 @@ def main():
         st.sidebar.error("Error: Please select a valid stock.")
     else:
         # Load stock data
-        stock_data = load_stock_data(stock, start_date, end_date)
+        stock_data = load_stock_data(stock, pd.to_datetime(start_date), pd.to_datetime(end_date))
         
         if not stock_data.empty:
             # Display stock data
