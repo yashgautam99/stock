@@ -200,6 +200,8 @@ def main():
     # Validate date range
     if start_date > end_date:
         st.sidebar.error("Error: End date must be after start date.")
+    elif stock == 'Select':
+        st.sidebar.error("Error: Please select a valid stock.")
     else:
         # Load stock data
         stock_data = load_stock_data(stock, start_date, end_date)
