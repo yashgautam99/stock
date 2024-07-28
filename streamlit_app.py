@@ -1,40 +1,46 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import yfinance as yf
-import ta
 import datetime
+import matplotlib.pyplot as plt
+import ta
+import time
 
 # List of 50 stock tickers for user selection
-STOCKS = [
-    'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'FB', 'TSLA', 'BRK.B', 'V', 'JNJ', 'WMT',
-    'JPM', 'UNH', 'NVDA', 'HD', 'PG', 'DIS', 'PYPL', 'MA', 'NFLX', 'INTC',
-    'PEP', 'KO', 'CSCO', 'MRK', 'NKE', 'XOM', 'T', 'CVX', 'ABT', 'ADBE',
-    'CMCSA', 'CRM', 'PFE', 'MCD', 'MDT', 'WFC', 'ORCL', 'VZ', 'IBM', 'HON',
-    'COST', 'SBUX', 'MMM', 'AMGN', 'GE', 'TMO', 'CAT', 'TXN', 'QCOM', 'BA'
-]
+STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
+          'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
+          'INTC', 'PFE', 'KO', 'PEP', 'NKE', 'MRK', 'T', 'BA', 'CSCO', 'ABT', 'XOM',
+          'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
+          'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
 
-def load_stock_data(ticker, start, end):
+def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
     """
-    Fetches historical stock data from Yahoo Finance.
+    Fetches historical stock data from Yahoo Finance with retry mechanism.
 
     Parameters:
     ticker (str): Stock ticker symbol.
     start (datetime): Start date for data retrieval.
     end (datetime): End date for data retrieval.
+    max_retries (int): Maximum number of retry attempts.
+    retry_delay (int): Delay in seconds between retries.
 
     Returns:
     pd.DataFrame: DataFrame containing stock data or empty DataFrame on error.
     """
-    try:
-        df = yf.download(ticker, start=start, end=end)
-        if not df.empty:
-            return df
-        else:
-            st.warning(f"No data available for {ticker}.")
-    except Exception as e:
-        st.warning(f"Error loading data for {ticker}: {e}")
-
+    for attempt in range(max_retries):
+        try:
+            stock_data = yf.download(ticker, start=start, end=end)
+            if not stock_data.empty:
+                return stock_data
+            else:
+                st.warning(f"No data available for {ticker}. Retrying...")
+        except Exception as e:
+            st.warning(f"Error loading data for {ticker} (Attempt {attempt + 1}/{max_retries}): {e}")
+        
+        if attempt < max_retries - 1:
+            time.sleep(retry_delay)
+    
+    st.error(f"Failed to load data for {ticker} after {max_retries} attempts.")
     return pd.DataFrame()  # Return an empty DataFrame on error
 
 def plot_stock_data(data, title):
@@ -52,11 +58,7 @@ def plot_stock_data(data, title):
     ax.set_title(title)
     ax.legend()
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_additional_data(data):
     """
@@ -87,11 +89,7 @@ def plot_additional_data(data):
     axs[2].legend()
 
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_moving_averages(data):
     """
@@ -100,9 +98,6 @@ def plot_moving_averages(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated moving averages.
     """
-    data['SMA_20'] = data['Close'].rolling(20).mean()
-    data['SMA_50'] = data['Close'].rolling(50).mean()
-
     fig, ax = plt.subplots(figsize=(10, 6))
 
     ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
@@ -112,11 +107,7 @@ def plot_moving_averages(data):
     ax.set_title('Moving Average Analysis')
     ax.legend()
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_bollinger_bands(data):
     """
@@ -125,10 +116,6 @@ def plot_bollinger_bands(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated Bollinger Bands.
     """
-    bb = ta.volatility.BollingerBands(data['Close'], window=20, window_dev=2)
-    data['BB_High'] = bb.bollinger_hband()
-    data['BB_Low'] = bb.bollinger_lband()
-
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
@@ -139,11 +126,7 @@ def plot_bollinger_bands(data):
     ax.set_title('Bollinger Bands Analysis')
     ax.legend()
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_rsi(data):
     """
@@ -152,8 +135,6 @@ def plot_rsi(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated RSI.
     """
-    data['RSI'] = ta.momentum.RSIIndicator(data['Close'], window=14).rsi()
-
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data.index, data['RSI'], label='RSI', linewidth=0.5)
@@ -163,11 +144,7 @@ def plot_rsi(data):
     ax.legend()
 
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_macd(data):
     """
@@ -176,23 +153,21 @@ def plot_macd(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data.
     """
+    # Calculate the MACD and Signal line
     shortEMA = data['Close'].ewm(span=12, adjust=False).mean()
     longEMA = data['Close'].ewm(span=26, adjust=False).mean()
-    data['MACD'] = shortEMA - longEMA
-    data['Signal'] = data['MACD'].ewm(span=9, adjust=False).mean()
+    MACD = shortEMA - longEMA
+    signal = MACD.ewm(span=9, adjust=False).mean()
 
+    # Plot MACD and Signal line
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(data.index, data['MACD'], label='MACD', color='r', linewidth=1)
-    ax.plot(data.index, data['Signal'], label='Signal line', color='b', linewidth=1)
+    ax.plot(data.index, MACD, label='MACD', color='r', linewidth=1)
+    ax.plot(data.index, signal, label='Signal line', color='b', linewidth=1)
     ax.set_title('MACD Analysis')
     ax.legend()
 
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def plot_price_changes(data):
     """
@@ -220,11 +195,7 @@ def plot_price_changes(data):
     axs[1].grid(True)
 
     plt.xticks(rotation=45)
-
-    try:
-        st.pyplot(fig)
-    except BrokenPipeError:
-        st.warning("Client disconnected prematurely.")
+    st.pyplot(fig)
 
 def main():
     """
@@ -245,7 +216,7 @@ def main():
         st.sidebar.error("Error: Please select a valid stock.")
     else:
         # Load stock data
-        stock_data = load_stock_data(stock + '.NS', start_date, end_date)
+        stock_data = load_stock_data(stock, start_date, end_date)
         
         if not stock_data.empty:
             # Display stock data
@@ -268,6 +239,18 @@ def main():
                 - **Volume**: The number of shares traded during the day, indicating market activity and interest.
             """)
             plot_additional_data(stock_data)
+
+            # Calculate moving averages
+            stock_data['SMA_20'] = stock_data['Close'].rolling(20).mean()
+            stock_data['SMA_50'] = stock_data['Close'].rolling(50).mean()
+
+            # Calculate Bollinger Bands
+            bb = ta.volatility.BollingerBands(stock_data['Close'], window=20, window_dev=2)
+            stock_data['BB_High'] = bb.bollinger_hband()
+            stock_data['BB_Low'] = bb.bollinger_lband()
+
+            # Calculate RSI
+            stock_data['RSI'] = ta.momentum.RSIIndicator(stock_data['Close'], window=14).rsi()
 
             # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
