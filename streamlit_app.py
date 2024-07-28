@@ -13,11 +13,12 @@ import socket
 
 ALPHA_VANTAGE_API_KEY = "CH0Q0JNSP3QYB53L" 
 # List of 50 stock tickers for user selection
-STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
-          'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
-          'INTC', 'PFE', 'KO', 'PEP', 'NKE', 'MRK', 'T', 'BA', 'CSCO', 'ABT', 'XOM',
-          'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
-          'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
+STOCKS = ['Select', 'TCS', 'RELIANCE', 'INFY', 'HDFCBANK', 'ICICIBANK', 'HINDUNILVR', 'ITC', 'KOTAKBANK', 'SBIN',
+          'BHARTIARTL', 'HCLTECH', 'BAJFINANCE', 'ASIANPAINT', 'AXISBANK', 'LT', 'NESTLEIND', 'MARUTI', 'HDFCLIFE',
+          'BAJAJFINSV', 'WIPRO', 'SUNPHARMA', 'DRREDDY', 'POWERGRID', 'M&M', 'ULTRACEMCO', 'TATASTEEL', 'ONGC',
+          'TITAN', 'INDUSINDBK', 'DIVISLAB', 'HDFCAMC', 'NTPC', 'ADANIGREEN', 'ADANIPORTS', 'HEROMOTOCO', 'BPCL',
+          'COALINDIA', 'TATAMOTORS', 'ADANIENT', 'JSWSTEEL', 'EICHERMOT', 'GRASIM', 'BAJAJ-AUTO', 'TECHM', 'UPL',
+          'CIPLA', 'HINDALCO', 'BRITANNIA', 'IOC', 'SHREECEM']
 
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_stock_data_yf(ticker, start, end, max_retries=5, base_delay=1):
