@@ -1,2 +1,6 @@
 streamlit
 yfinance
+matplotlib
+datetime
+pandas
+ta
