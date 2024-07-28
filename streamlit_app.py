@@ -1,21 +1,23 @@
 import streamlit as st
 import pandas as pd
-import yfinance as yf
-import datetime
 import matplotlib.pyplot as plt
+import requests
 import ta
 import time
+import datetime
 
 # List of 50 stock tickers for user selection
-STOCKS = ['Select','AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
+STOCKS = ['Select', 'AAPL', 'MSFT', 'GOOG', 'AMZN', 'FB', 'TSLA', 'BRK-B', 'NVDA', 'JNJ', 'V',
           'WMT', 'JPM', 'PG', 'UNH', 'MA', 'DIS', 'HD', 'PYPL', 'VZ', 'ADBE', 'NFLX',
           'INTC', 'PFE', 'KO', 'PEP', 'NKE', 'MRK', 'T', 'BA', 'CSCO', 'ABT', 'XOM',
           'CRM', 'ACN', 'CMCSA', 'AVGO', 'MCD', 'QCOM', 'MDT', 'HON', 'COST', 'AMGN',
           'TMUS', 'TXN', 'NEE', 'PM', 'IBM', 'LMT', 'ORCL', 'INTU']
 
+API_KEY = 'IYILGA6IYLY3RLQR'
+
 def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
     """
-    Fetches historical stock data from Yahoo Finance with retry mechanism.
+    Fetches historical stock data from Alpha Vantage with retry mechanism.
 
     Parameters:
     ticker (str): Stock ticker symbol.
@@ -27,16 +29,27 @@ def load_stock_data(ticker, start, end, max_retries=3, retry_delay=1):
     Returns:
     pd.DataFrame: DataFrame containing stock data or empty DataFrame on error.
     """
+    url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={ticker}&outputsize=full&apikey={API_KEY}"
+    
     for attempt in range(max_retries):
         try:
-            stock_data = yf.download(ticker, start=start, end=end)
-            if not stock_data.empty:
-                return stock_data
+            response = requests.get(url)
+            data = response.json()
+            if 'Time Series (Daily)' in data:
+                df = pd.DataFrame.from_dict(data['Time Series (Daily)'], orient='index')
+                df = df.apply(pd.to_numeric)
+                df.index = pd.to_datetime(df.index)
+                df = df.sort_index()
+                df = df[(df.index >= pd.to_datetime(start)) & (df.index <= pd.to_datetime(end))]
+                if not df.empty:
+                    return df
+                else:
+                    st.warning(f"No data available for {ticker}. Retrying...")
             else:
-                st.warning(f"No data available for {ticker}. Retrying...")
+                st.warning(f"Data not found for {ticker}. Retrying...")
         except Exception as e:
             st.warning(f"Error loading data for {ticker} (Attempt {attempt + 1}/{max_retries}): {e}")
-        
+
         if attempt < max_retries - 1:
             time.sleep(retry_delay)
     
@@ -52,7 +65,7 @@ def plot_stock_data(data, title):
     title (str): Title for the plot.
     """
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(data.index, data['Close'], label='Close Price', color='blue')
+    ax.plot(data.index, data['4. close'], label='Close Price', color='blue')
     ax.set_xlabel('Date')
     ax.set_ylabel('Close Price')
     ax.set_title(title)
@@ -70,20 +83,20 @@ def plot_additional_data(data):
     fig, axs = plt.subplots(3, 1, figsize=(10, 15), sharex=True)
 
     # Plot Close and Open prices
-    axs[0].plot(data.index, data['Close'], label='Close Price', color='blue')
-    axs[0].plot(data.index, data['Open'], label='Open Price', color='green')
+    axs[0].plot(data.index, data['4. close'], label='Close Price', color='blue')
+    axs[0].plot(data.index, data['1. open'], label='Open Price', color='green')
     axs[0].set_ylabel('Price')
     axs[0].legend()
     axs[0].set_title('Stock Prices')
 
     # Plot High and Low prices
-    axs[1].plot(data.index, data['High'], label='High Price', color='red')
-    axs[1].plot(data.index, data['Low'], label='Low Price', color='orange')
+    axs[1].plot(data.index, data['2. high'], label='High Price', color='red')
+    axs[1].plot(data.index, data['3. low'], label='Low Price', color='orange')
     axs[1].set_ylabel('Price')
     axs[1].legend()
 
     # Plot Volume
-    axs[2].plot(data.index, data['Volume'], label='Volume', color='purple')
+    axs[2].plot(data.index, data['5. volume'], label='Volume', color='purple')
     axs[2].set_ylabel('Volume')
     axs[2].set_xlabel('Date')
     axs[2].legend()
@@ -98,9 +111,12 @@ def plot_moving_averages(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated moving averages.
     """
+    data['SMA_20'] = data['4. close'].rolling(20).mean()
+    data['SMA_50'] = data['4. close'].rolling(50).mean()
+
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
+    ax.plot(data.index, data['4. close'], label='Close Price', linewidth=0.5)
     ax.plot(data.index, data['SMA_20'], label='20-Day SMA', linestyle='--')
     ax.plot(data.index, data['SMA_50'], label='50-Day SMA', linestyle='--')
 
@@ -116,9 +132,13 @@ def plot_bollinger_bands(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated Bollinger Bands.
     """
+    bb = ta.volatility.BollingerBands(data['4. close'], window=20, window_dev=2)
+    data['BB_High'] = bb.bollinger_hband()
+    data['BB_Low'] = bb.bollinger_lband()
+
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    ax.plot(data.index, data['Close'], label='Close Price', linewidth=0.5)
+    ax.plot(data.index, data['4. close'], label='Close Price', linewidth=0.5)
     ax.plot(data.index, data['BB_High'], label='Bollinger Band High', linestyle='--')
     ax.plot(data.index, data['BB_Low'], label='Bollinger Band Low', linestyle='--')
     ax.fill_between(data.index, data['BB_High'], data['BB_Low'], color='gray', alpha=0.2)
@@ -135,6 +155,8 @@ def plot_rsi(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data with calculated RSI.
     """
+    data['RSI'] = ta.momentum.RSIIndicator(data['4. close'], window=14).rsi()
+
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(data.index, data['RSI'], label='RSI', linewidth=0.5)
@@ -153,16 +175,14 @@ def plot_macd(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data.
     """
-    # Calculate the MACD and Signal line
-    shortEMA = data['Close'].ewm(span=12, adjust=False).mean()
-    longEMA = data['Close'].ewm(span=26, adjust=False).mean()
-    MACD = shortEMA - longEMA
-    signal = MACD.ewm(span=9, adjust=False).mean()
+    shortEMA = data['4. close'].ewm(span=12, adjust=False).mean()
+    longEMA = data['4. close'].ewm(span=26, adjust=False).mean()
+    data['MACD'] = shortEMA - longEMA
+    data['Signal'] = data['MACD'].ewm(span=9, adjust=False).mean()
 
-    # Plot MACD and Signal line
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(data.index, MACD, label='MACD', color='r', linewidth=1)
-    ax.plot(data.index, signal, label='Signal line', color='b', linewidth=1)
+    ax.plot(data.index, data['MACD'], label='MACD', color='r', linewidth=1)
+    ax.plot(data.index, data['Signal'], label='Signal line', color='b', linewidth=1)
     ax.set_title('MACD Analysis')
     ax.legend()
 
@@ -176,8 +196,8 @@ def plot_price_changes(data):
     Parameters:
     data (pd.DataFrame): DataFrame containing stock data.
     """
-    data['Absolute_Change'] = data['Close'].diff()
-    data['Percentage_Change'] = data['Close'].pct_change() * 100
+    data['Absolute_Change'] = data['4. close'].diff()
+    data['Percentage_Change'] = data['4. close'].pct_change() * 100
 
     fig, axs = plt.subplots(2, 1, figsize=(12, 10), sharex=True)
 
@@ -239,18 +259,6 @@ def main():
                 - **Volume**: The number of shares traded during the day, indicating market activity and interest.
             """)
             plot_additional_data(stock_data)
-
-            # Calculate moving averages
-            stock_data['SMA_20'] = stock_data['Close'].rolling(20).mean()
-            stock_data['SMA_50'] = stock_data['Close'].rolling(50).mean()
-
-            # Calculate Bollinger Bands
-            bb = ta.volatility.BollingerBands(stock_data['Close'], window=20, window_dev=2)
-            stock_data['BB_High'] = bb.bollinger_hband()
-            stock_data['BB_Low'] = bb.bollinger_lband()
-
-            # Calculate RSI
-            stock_data['RSI'] = ta.momentum.RSIIndicator(stock_data['Close'], window=14).rsi()
 
             # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
