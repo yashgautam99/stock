@@ -1,8 +1,5 @@
 streamlit
-yfinance
-matplotlib
-datetime
 pandas
+matplotlib
+yfinance
 ta
-requests
-time
