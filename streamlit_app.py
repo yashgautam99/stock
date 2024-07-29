@@ -185,6 +185,26 @@ def plot_price_changes(data):
     plt.xticks(rotation=45)
     st.pyplot(fig)
 
+def plot_price_range(data):
+    """
+    Plots the daily price range, calculated as the difference between the high and low prices.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame containing stock data.
+    """
+    data['Daily_Range'] = data['High'] - data['Low']  # Calculate the daily price range
+
+    fig, ax = plt.subplots(figsize=(12, 4))
+
+    ax.plot(data.index, data['Daily_Range'], label='Daily Price Range', linewidth=0.5)
+    ax.set_title('Daily Price Range')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price Range')
+    ax.legend()
+
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
 def main():
     """
     Main function to run the Streamlit app.
@@ -241,7 +261,7 @@ def main():
             # Sidebar for selecting additional indicators
             indicator = st.sidebar.selectbox(
                 "Choose indicators",
-                ["Select", "Moving Averages", "Bollinger Bands", "RSI", "MACD", "Price Changes"]
+                ["Select", "Moving Averages", "Bollinger Bands", "RSI", "MACD", "Price Changes", "Daily Price Range"]
             )
 
             # Plot selected indicator
@@ -275,6 +295,12 @@ def main():
                     This plot shows the absolute and percentage changes in the stock's closing price. Large changes may indicate significant market events or trends. The absolute change shows the raw price difference, while the percentage change provides a relative measure.
                 """)
                 plot_price_changes(stock_data)
+            elif indicator == "Daily Price Range":
+                st.subheader('Daily Price Range')
+                st.write("""
+                    The daily price range shows the difference between the highest and lowest prices of the stock on a given day. This metric helps understand the volatility of the stock during the trading day.
+                """)
+                plot_price_range(stock_data)
             
         else:
             st.write("No stock data available. Please select a stock from the list.")
