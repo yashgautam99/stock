@@ -108,6 +108,7 @@ def plot_price_range(data):
     st.plotly_chart(fig)
 
 # Function to build and train the LSTM model
+@st.cache_data
 def build_and_train_lstm(data, window_size):
     # Scaling the data
     scaler = MinMaxScaler(feature_range=(0, 1))
@@ -143,9 +144,10 @@ def build_and_train_lstm(data, window_size):
     return model, scaler, history
 
 # Function to forecast stock prices
-def forecast_stock(model, scaler, data, window_size, future_steps):
+@st.cache_data
+def forecast_stock(_scaler, model, data, window_size, future_steps):
     # Scaling the data
-    scaled_data = scaler.transform(data[['Close']])
+    scaled_data = _scaler.transform(data[['Close']])
 
     # Preparing the last window of data for prediction
     last_sequence = scaled_data[-window_size:]
@@ -156,14 +158,13 @@ def forecast_stock(model, scaler, data, window_size, future_steps):
         predictions.append(next_prediction[0, 0])
         last_sequence = np.append(last_sequence[1:], next_prediction)
 
-    predictions = scaler.inverse_transform(np.array(predictions).reshape(-1, 1))
+    # Inverse transform to get original scale
+    predictions = _scaler.inverse_transform(np.array(predictions).reshape(-1, 1))
     return predictions
 
-# Streamlit app interface
 def main():
     st.title("📈 Stock Prediction Dashboard")
 
-    # Sidebar for user inputs
     st.sidebar.header("Select Stock and Time Period")
     stock = st.sidebar.selectbox("Choose a stock", STOCKS)
     interval = st.sidebar.selectbox("Data Interval", ['1d', '1wk', '1mo'])
@@ -177,89 +178,48 @@ def main():
     elif start_date >= end_date:
         st.sidebar.error("End date must be after start date.")
     else:
-        # Load stock data
         stock_data = load_stock_data(stock, start_date, end_date)
         if stock_data.empty:
             st.write("No stock data available. Please select a different stock.")
             return
 
-        # Display stock data
         st.subheader(f"{stock} Stock Data")
         st.dataframe(stock_data.tail())
 
-        # Plot the close price
         st.subheader(f'{stock} Stock Price')
-        st.write("""
-            This graph shows the closing price of the selected stock over time. The closing price is the final price at which the stock traded on a given day, providing a snapshot of its value.
-        """)
         plot_stock_data(stock_data, f'{stock} Stock Price')
 
-        # Additional stock data plots
         st.subheader('Additional Stock Data')
-        st.write("""
-            This section provides additional stock data such as Open, High, Low prices, and Volume.
-        """)
         plot_additional_data(stock_data)
 
-        # Moving Averages
         stock_data['SMA_20'] = ta.trend.sma_indicator(stock_data['Close'], window=20)
         stock_data['SMA_50'] = ta.trend.sma_indicator(stock_data['Close'], window=50)
         st.subheader('Moving Averages')
-        st.write("""
-            This section displays the 20-day and 50-day Simple Moving Averages (SMA) of the stock. SMA helps in smoothing out price data over a specified period and identifying trends.
-        """)
         plot_moving_averages(stock_data)
 
-        # Bollinger Bands
         stock_data['BB_High'] = ta.volatility.bollinger_hband(stock_data['Close'])
         stock_data['BB_Low'] = ta.volatility.bollinger_lband(stock_data['Close'])
         stock_data['BB_Mid'] = ta.volatility.bollinger_mavg(stock_data['Close'])
         st.subheader('Bollinger Bands')
-        st.write("""
-            Bollinger Bands consist of a middle band (SMA) and two outer bands. The outer bands are set at standard deviations above and below the SMA, providing a range within which the stock price is expected to trade.
-        """)
         plot_bollinger_bands(stock_data)
 
-        # RSI
         stock_data['RSI'] = ta.momentum.rsi(stock_data['Close'], window=14)
         st.subheader('RSI (Relative Strength Index)')
-        st.write("""
-            RSI is a momentum oscillator that measures the speed and change of price movements. It ranges from 0 to 100 and is typically used to identify overbought or oversold conditions.
-        """)
         plot_rsi(stock_data)
 
-        # MACD
         st.subheader('MACD (Moving Average Convergence Divergence)')
-        st.write("""
-            MACD is a trend-following momentum indicator that shows the relationship between two moving averages of a stock's price. It consists of the MACD line and the signal line, helping to identify potential buy or sell signals.
-        """)
         plot_macd(stock_data)
 
-        # Price Changes
         st.subheader('Price Changes')
-        st.write("""
-            This section shows the absolute and percentage changes in the stock price. It helps to identify significant price movements.
-        """)
         plot_price_changes(stock_data)
 
-        # Daily Price Range
         st.subheader('Daily Price Range')
-        st.write("""
-            The daily price range is the difference between the high and low prices for a given day. It indicates the volatility and range of price movement within a day.
-        """)
         plot_price_range(stock_data)
 
-        # Building and training the LSTM model
         model, scaler, history = build_and_train_lstm(stock_data, window_size)
+        predictions = forecast_stock(scaler, model, stock_data, window_size, future_steps)
 
-        # Forecasting future stock prices
-        predictions = forecast_stock(model, scaler, stock_data, window_size, future_steps)
-
-        # Plotting forecasted stock prices
         st.subheader('Forecasted Stock Prices')
-        st.write(f"""
-            This section forecasts the future stock prices for the next {future_steps} days using an LSTM model. The model is trained on historical data and predicts the closing prices.
-        """)
         future_dates = pd.date_range(stock_data.index[-1] + pd.Timedelta(days=1), periods=future_steps)
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Actual Prices', line=dict(color='blue')))
