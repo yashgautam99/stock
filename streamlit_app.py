@@ -8,7 +8,7 @@ import ta
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dropout, Dense
+from tensorflow.keras.layers import Input, LSTM, Dropout, Dense
 import plotly.graph_objects as go
 
 # List of 50 stock tickers for user selection
@@ -98,134 +98,122 @@ def plot_price_changes(data):
     fig.update_layout(title='Price Changes', xaxis_title='Date', yaxis_title='Change')
     st.plotly_chart(fig)
 
-# Function to plot Daily Price Range
+# Function to plot Price Range
 def plot_price_range(data):
-    data['Daily_Range'] = data['High'] - data['Low']
+    data['Range'] = data['High'] - data['Low']
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=data.index, y=data['Daily_Range'], mode='lines', name='Daily Price Range', line=dict(color='blue')))
-    fig.update_layout(title='Daily Price Range', xaxis_title='Date', yaxis_title='Price Range')
+    fig.add_trace(go.Scatter(x=data.index, y=data['Range'], mode='lines', name='Price Range', line=dict(color='blue')))
+    fig.update_layout(title='Price Range', xaxis_title='Date', yaxis_title='Range')
     st.plotly_chart(fig)
 
-# Function to build and train the LSTM model
+# Function to build and train LSTM model
 @st.cache_data
 def build_and_train_lstm(data, window_size):
-    # Scaling the data
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    # Prepare the data
+    scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data[['Close']])
-
-    # Preparing the data for LSTM
+    
     X, y = [], []
     for i in range(window_size, len(scaled_data)):
-        X.append(scaled_data[i-window_size:i, 0])
-        y.append(scaled_data[i, 0])
+        X.append(scaled_data[i-window_size:i])
+        y.append(scaled_data[i])
+    
     X, y = np.array(X), np.array(y)
-    X = X.reshape(X.shape[0], X.shape[1], 1)
-
-    # Splitting the data into training and validation sets
-    split = int(X.shape[0] * 0.8)
-    X_train, X_val = X[:split], X[split:]
-    y_train, y_val = y[:split], y[split:]
-
-    # Building the LSTM model
-    model = Sequential([
-        LSTM(50, return_sequences=True, input_shape=(window_size, 1)),
-        Dropout(0.2),
-        LSTM(50),
-        Dropout(0.2),
-        Dense(1)
-    ])
-
+    
+    # Build the model
+    model = Sequential()
+    model.add(Input(shape=(window_size, 1)))
+    model.add(LSTM(50, return_sequences=True))
+    model.add(Dropout(0.2))
+    model.add(LSTM(50))
+    model.add(Dropout(0.2))
+    model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_squared_error')
     
-    # Training the model
-    history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_data=(X_val, y_val))
-
-    return model, scaler, history
+    # Train the model
+    model.fit(X, y, epochs=10, batch_size=32, verbose=1)
+    return model, scaler, data
 
 # Function to forecast stock prices
 @st.cache_data
 def forecast_stock(_scaler, model, data, window_size, future_steps):
-    # Scaling the data
-    scaled_data = _scaler.transform(data[['Close']])
-
-    # Preparing the last window of data for prediction
-    last_sequence = scaled_data[-window_size:]
-    predictions = []
-
+    scaler = _scaler
+    scaled_data = scaler.transform(data[['Close']])
+    
+    # Prepare the initial input for prediction
+    X_input = scaled_data[-window_size:].reshape((1, window_size, 1))
+    
+    forecast = []
     for _ in range(future_steps):
-        next_prediction = model.predict(last_sequence.reshape(1, window_size, 1))
-        predictions.append(next_prediction[0, 0])
-        last_sequence = np.append(last_sequence[1:], next_prediction)
+        pred = model.predict(X_input)[0][0]
+        forecast.append(pred)
+        
+        # Prepare the new input for the next prediction
+        # Create a new array with the predicted value
+        new_input = np.array([[pred]]).reshape((1, 1, 1))
+        
+        # Concatenate the new input to maintain the window size
+        X_input = np.concatenate((X_input[:, 1:, :], new_input), axis=1)
 
-    # Inverse transform to get original scale
-    predictions = _scaler.inverse_transform(np.array(predictions).reshape(-1, 1))
-    return predictions
+    forecast = scaler.inverse_transform(np.array(forecast).reshape(-1, 1))
+    forecast_dates = [data.index[-1] + datetime.timedelta(days=i) for i in range(1, future_steps + 1)]
+    forecast_df = pd.DataFrame(forecast, index=forecast_dates, columns=['Forecast'])
+    return forecast_df
 
+# Function to plot the forecast
+def plot_forecast(data, forecast, window_size):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data.index, y=data['Close'], mode='lines', name='Historical Data', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=forecast.index, y=forecast['Forecast'], mode='lines', name='Forecast', line=dict(color='red')))
+    fig.update_layout(title='Stock Price Forecast', xaxis_title='Date', yaxis_title='Price')
+    st.plotly_chart(fig)
+
+# Main function to run the Streamlit app
 def main():
-    st.title("📈 Stock Prediction Dashboard")
+    st.title("Stock Prediction Dashboard")
 
-    st.sidebar.header("Select Stock and Time Period")
-    stock = st.sidebar.selectbox("Choose a stock", STOCKS)
-    interval = st.sidebar.selectbox("Data Interval", ['1d', '1wk', '1mo'])
-    start_date = st.sidebar.date_input("Start Date", datetime.date(2018, 1, 1))
-    end_date = st.sidebar.date_input("End Date", datetime.date.today())
-    future_steps = st.sidebar.slider("Days to Predict", 1, 30, 7)
-    window_size = st.sidebar.slider("Window Size for LSTM", 30, 120, 60)
+    selected_stock = st.selectbox("Select a stock:", STOCKS)
 
-    if stock == 'Select':
-        st.sidebar.error("Please select a stock.")
-    elif start_date >= end_date:
-        st.sidebar.error("End date must be after start date.")
-    else:
-        stock_data = load_stock_data(stock, start_date, end_date)
-        if stock_data.empty:
-            st.write("No stock data available. Please select a different stock.")
-            return
+    if selected_stock != 'Select':
+        start_date = st.date_input("Start Date", datetime.date(2022, 1, 1))
+        end_date = st.date_input("End Date", datetime.date.today())
+        window_size = st.slider("Window Size for LSTM", min_value=1, max_value=60, value=20)
+        future_steps = st.slider("Days to Forecast", min_value=1, max_value=365, value=30)
 
-        st.subheader(f"{stock} Stock Data")
-        st.dataframe(stock_data.tail())
+        data = load_stock_data(selected_stock, start_date, end_date)
 
-        st.subheader(f'{stock} Stock Price')
-        plot_stock_data(stock_data, f'{stock} Stock Price')
+        if not data.empty:
+            st.subheader(f"{selected_stock} Stock Data")
+            st.write(data.head())
 
-        st.subheader('Additional Stock Data')
-        plot_additional_data(stock_data)
+            # Plot the stock data
+            plot_stock_data(data, f"{selected_stock} Stock Price")
 
-        stock_data['SMA_20'] = ta.trend.sma_indicator(stock_data['Close'], window=20)
-        stock_data['SMA_50'] = ta.trend.sma_indicator(stock_data['Close'], window=50)
-        st.subheader('Moving Averages')
-        plot_moving_averages(stock_data)
+            # Compute and plot technical indicators
+            data['SMA_20'] = ta.trend.sma_indicator(data['Close'], window=20)
+            data['SMA_50'] = ta.trend.sma_indicator(data['Close'], window=50)
+            plot_moving_averages(data)
 
-        stock_data['BB_High'] = ta.volatility.bollinger_hband(stock_data['Close'])
-        stock_data['BB_Low'] = ta.volatility.bollinger_lband(stock_data['Close'])
-        stock_data['BB_Mid'] = ta.volatility.bollinger_mavg(stock_data['Close'])
-        st.subheader('Bollinger Bands')
-        plot_bollinger_bands(stock_data)
+            data['BB_High'], data['BB_Low'], data['BB_Mid'] = ta.volatility.BollingerBands(data['Close']).bollinger_hband(), ta.volatility.BollingerBands(data['Close']).bollinger_lband(), ta.volatility.BollingerBands(data['Close']).bollinger_mavg()
+            plot_bollinger_bands(data)
 
-        stock_data['RSI'] = ta.momentum.rsi(stock_data['Close'], window=14)
-        st.subheader('RSI (Relative Strength Index)')
-        plot_rsi(stock_data)
+            data['RSI'] = ta.momentum.RSIIndicator(data['Close']).rsi()
+            plot_rsi(data)
 
-        st.subheader('MACD (Moving Average Convergence Divergence)')
-        plot_macd(stock_data)
+            plot_macd(data)
+            plot_price_changes(data)
+            plot_price_range(data)
 
-        st.subheader('Price Changes')
-        plot_price_changes(stock_data)
+            # Train the LSTM model and make forecasts
+            model, scaler, history = build_and_train_lstm(data, window_size)
+            forecast = forecast_stock(scaler, model, data, window_size, future_steps)
+            plot_forecast(data, forecast, window_size)
 
-        st.subheader('Daily Price Range')
-        plot_price_range(stock_data)
-
-        model, scaler, history = build_and_train_lstm(stock_data, window_size)
-        predictions = forecast_stock(scaler, model, stock_data, window_size, future_steps)
-
-        st.subheader('Forecasted Stock Prices')
-        future_dates = pd.date_range(stock_data.index[-1] + pd.Timedelta(days=1), periods=future_steps)
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=stock_data.index, y=stock_data['Close'], mode='lines', name='Actual Prices', line=dict(color='blue')))
-        fig.add_trace(go.Scatter(x=future_dates, y=predictions.flatten(), mode='lines', name='Predicted Prices', line=dict(color='red')))
-        fig.update_layout(title=f'{stock} Forecasted Stock Prices', xaxis_title='Date', yaxis_title='Stock Price')
-        st.plotly_chart(fig)
+            # Display model performance metrics
+            y_true = data['Close'].values[-len(forecast):]
+            st.write(f"Mean Squared Error: {mean_squared_error(y_true, forecast['Forecast'].values.flatten()):.4f}")
+            st.write(f"Mean Absolute Error: {mean_absolute_error(y_true, forecast['Forecast'].values.flatten()):.4f}")
 
 if __name__ == "__main__":
     main()
